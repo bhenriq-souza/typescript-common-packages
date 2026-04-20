@@ -1,4 +1,60 @@
 
+# Phase 02-03: Infra & Skeleton — CONCLUÍDA
+
+> **Status:** ✅ Concluída em 2026-04-20
+> **Branch homelab-infra:** `feat/ts-common-packages-deps`
+> **Branch typescript-common-packages:** `develop`
+
+---
+
+## Resultado Final
+
+### Fase 2 — Infra Terraform (aplicada no GCP)
+
+| Entregável | Status | Detalhes |
+|-----------|--------|----------|
+| Módulo `artifact-registry-npm` | ✅ Criado e aplicado | `homelab-infra/terraform/modules/artifact-registry-npm/` (main.tf, variables.tf, outputs.tf) |
+| Módulo `gcs-nx-cache` | ✅ Criado e aplicado | `homelab-infra/terraform/modules/gcs-nx-cache/` (main.tf, variables.tf, outputs.tf) |
+| Extensão `gcp-github-wif` | ✅ Retrocompatível | `artifact_registry_repositories` (list), `gcs_buckets` (list), variável legada mantida |
+| Bootstrap homelab | ✅ Aplicado | Novos módulos chamados, repos adicionados ao WIF |
+| State migration | ✅ | `count` → `for_each` no ci_writer sem destroy |
+
+**Recursos GCP provisionados:**
+- AR npm `typescript-packages-dev` (us-central1, cleanup 30d)
+- Bucket GCS `typescript-nx-cache` (lifecycle 90d, uniform access, public prevention enforced)
+- WIF condition atualizada: `homelab-gitops`, `typescript-common-packages`, `ts-express-app`
+- IAM: SA `github-actions-ci` com `artifactregistry.writer` (npm) + `storage.objectAdmin` (cache)
+
+### Fase 3 — Esqueleto Nx (commitado)
+
+| Entregável | Arquivo |
+|-----------|---------|
+| Package raiz | `package.json` — Nx 22.6.5, TS ~5.8.2, Jest ^30, ESLint ^9 |
+| Nx config | `nx.json` — remote cache GCS (`nx-remotecache-gcs` MIT), Nx Release independent + version plans |
+| TypeScript base | `tsconfig.base.json` — ES2016, nodeNext, decorators, strict |
+| NPM config | `.npmrc` — ignore-scripts=true, dual registry (AR comentado) |
+| Version plans | `.nx/version-plans/README.md` + `.gitkeep` |
+| CI workflow | `.github/workflows/ci.yml` — lint/test/build + publish dev AR via WIF |
+| Release workflow | `.github/workflows/release.yml` — version/tag/publish npm --provenance |
+| Governance | `.github/CODEOWNERS`, `.github/pull_request_template.md` |
+| Docs | `README.md`, `docs/runbooks/package-onboarding.md` |
+
+### Desvios do ADR-0001
+
+| Item ADR | Implementação | Motivo |
+|----------|--------------|--------|
+| `@pellegrims/nx-remotecache-gcs` | `nx-remotecache-gcs` (wvanderdeijl) | Pacote original não existe no npm; alternativa MIT ativa (v2.2.0) |
+| `@nx/remote-cache` como fallback | Não usado | `@nx/gcs-cache` oficial é licença **Commercial**; OSS preferido |
+| Node LTS | Node 22 (engines ≥22) | LTS atual abril 2026 |
+
+---
+
+## Prompts Originais Utilizados
+
+Os prompts abaixo foram usados nos chats que executaram esta fase. Mantidos para rastreabilidade.
+
+---
+
 **ADRs e Discovery**
 
 *CONTEXTO*
