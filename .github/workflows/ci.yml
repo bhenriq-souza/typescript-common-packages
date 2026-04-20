@@ -102,13 +102,27 @@ jobs:
       - name: Derive NX_BASE for affected commands
         uses: nrwl/nx-set-shas@v4
 
+      - name: Check affected packages
+        id: affected
+        run: |
+          AFFECTED=$(npx nx show projects --affected --type=lib 2>/dev/null || echo "")
+          if [ -z "$AFFECTED" ]; then
+            echo "has_affected=false" >> "$GITHUB_OUTPUT"
+            echo "No affected packages — skipping publish."
+          else
+            echo "has_affected=true" >> "$GITHUB_OUTPUT"
+            echo "Affected packages: $AFFECTED"
+          fi
+
       - name: Authenticate to GCP (WIF)
+        if: steps.affected.outputs.has_affected == 'true'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: projects/702302784311/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider
           service_account: github-actions-ci@homelab-492918.iam.gserviceaccount.com
 
       - name: Compute dev version
+        if: steps.affected.outputs.has_affected == 'true'
         id: version
         run: |
           PR_NUM=${{ github.event.pull_request.number }}
@@ -117,6 +131,7 @@ jobs:
           echo "dev_version=${DEV_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Set dev version in packages
+        if: steps.affected.outputs.has_affected == 'true'
         run: |
           VERSION="${{ steps.version.outputs.dev_version }}"
           for pkg_json in $(find packages -name 'package.json' -maxdepth 2); do
@@ -129,9 +144,11 @@ jobs:
           done
 
       - name: Build affected
+        if: steps.affected.outputs.has_affected == 'true'
         run: npx nx affected -t build
 
       - name: Check uniqueness on AR
+        if: steps.affected.outputs.has_affected == 'true'
         run: |
           VERSION="${{ steps.version.outputs.dev_version }}"
           for pkg in $(npx nx show projects --affected); do
@@ -146,13 +163,22 @@ jobs:
           done
 
       - name: Configure npm for AR
+        if: steps.affected.outputs.has_affected == 'true'
         run: |
-          npx google-artifactregistry-auth
-          npm config set @bhs-dev:registry "https://${AR_REGISTRY}/"
+          AR_URL="https://${AR_REGISTRY}/"
+          # 1. Configura registry do scope no .npmrc do projeto
+          npm config set @bhs-dev:registry "${AR_URL}" --location=project
+          # 2. Gera auth tokens no .npmrc do usuario (~/.npmrc) a partir das credenciais WIF
+          npx google-artifactregistry-auth --repo-config=.npmrc --credential-config=.npmrc
+          # 3. Mostra config para debug (sem tokens)
+          echo "--- .npmrc (projeto) ---"
+          cat .npmrc
+          echo "--- registry config ---"
+          npm config get @bhs-dev:registry
 
       - name: Publish to AR
+        if: steps.affected.outputs.has_affected == 'true'
         run: |
           npx nx release publish \
-            --registry="https://${AR_REGISTRY}/" \
             --tag=dev \
             --first-release
