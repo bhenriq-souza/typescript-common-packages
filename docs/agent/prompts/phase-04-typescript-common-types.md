@@ -1,11 +1,63 @@
-# Phase 04: Primeiro Pacote — `typescript-common-types`
+# Phase 04: Primeiro Pacote — `typescript-common-types` — CONCLUÍDA
 
-> **Objetivo:** Criar o pacote `@bhs-dev/typescript-common-types` como validação end-to-end do esqueleto do monorepo (build, test, lint, publish dev no AR).
-> **Pré-requisito:** Phase 02-03 concluída (infra aplicada, esqueleto commitado).
+> **Status:** ✅ Concluída em 2026-04-20
+> **Branch:** `feat/initial-configs`
+> **PR:** #1 (aberto contra `develop`)
 
 ---
 
-## Prompt para Novo Chat
+## Resultado Final
+
+### Pacote `@bhs-dev/typescript-common-types`
+
+| Entregável                        | Status | Detalhes                                                                                                                                                                                            |
+| --------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Geração via `nx g @nx/js:lib`     | ✅     | `packages/typescript-common-types/` com tsc, eslint, jest                                                                                                                                           |
+| `package.json`                    | ✅     | v0.0.1, `publishConfig.access: "public"`, `engines.node >= 22`, peerDep `express >= 5`                                                                                                              |
+| Interfaces (`src/interfaces/`)    | ✅     | `ILogger`, `IEnvService`, `IHttpRequestOptions<TBody>`, `HttpResponse<T>`, `IHttpService`, `IBaseRoute`, `IRouteModule`, `MiddlewareConfig`                                                         |
+| Types (`src/types/`)              | ✅     | `ClassCtor<T>`, `ScopeTypes`, `CustomErrorOptions`, `EnvVariable`, `EnvList`, `HttpMethod`, `HttpResponseType`, `RouteDef`, `RequestParts`, `TypedRequest`, `TypedRequestBody`, `MiddlewareFactory` |
+| Error classes (`src/types/`)      | ✅     | `EnvironmentError`, `EnvVarsNotFoundError`, `HttpError<T>`, `HttpTimeoutError`                                                                                                                      |
+| Symbols (`src/symbols/`)          | ✅     | 8 symbols DI: `EnvServiceSymbol`, `ProcessEnvSymbol`, `EnvListSymbol`, `LoggerServiceSymbol`, `HttpResponsesSymbol`, `RequestContextSymbol`, `ValidationMiddlewareSymbol`, `HttpServiceSymbol`      |
+| Barrel export (`src/index.ts`)    | ✅     | Re-exporta `interfaces/`, `types/`, `symbols/`                                                                                                                                                      |
+| Path alias (`tsconfig.base.json`) | ✅     | `@bhs-dev/typescript-common-types` → `packages/.../src/index.ts`                                                                                                                                    |
+| Testes unitários                  | ✅     | 3 suites, 36 testes (errors, symbols, barrel)                                                                                                                                                       |
+| Build                             | ✅     | `nx run typescript-common-types:build`                                                                                                                                                              |
+| Lint                              | ✅     | `nx run typescript-common-types:lint`                                                                                                                                                               |
+| README.md                         | ✅     | Documentação com tabelas de referência e 6 exemplos de uso                                                                                                                                          |
+
+### Melhorias CI/CD aplicadas durante a fase
+
+| Entregável          | Status | Detalhes                                                       |
+| ------------------- | ------ | -------------------------------------------------------------- |
+| Coverage thresholds | ✅     | `jest.preset.js`: branches 75%, functions/lines/statements 90% |
+| Coverage no PR      | ✅     | `MishaKav/jest-coverage-comment` via `nyc merge`               |
+| Husky + lint-staged | ✅     | Pre-commit: eslint --fix, prettier, nx affected test           |
+| Security audit      | ✅     | `npm audit --audit-level=high --omit=dev` (ignora devDeps)     |
+
+### Correções no CI (`ci.yml`) durante a fase
+
+| Problema                                                          | Correção                                                                          |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `branches` + `branches-ignore` inválido no GitHub Actions         | Removido `push` trigger; CI roda apenas em `pull_request`                         |
+| `.gitkeep` interpretado como version plan                         | Removido `.nx/version-plans/.gitkeep`                                             |
+| Version plan usava nome npm (`@bhs-dev/...`)                      | Corrigido para nome Nx (`typescript-common-types`)                                |
+| `defaultBase: "main"` mas branch padrão é `develop`               | Corrigido `nx.json` para `"defaultBase": "develop"`                               |
+| `nx affected` falhava no job `publish-dev` (sem branch local)     | Adicionado `nrwl/nx-set-shas@v4` no job                                           |
+| `--ver` flag inválida no `nx release publish`                     | Substituído por step `Set dev version` que atualiza `package.json` antes do build |
+| `JSON.parse` error no primeiro publish (pacote inexistente no AR) | Adicionado `--first-release`                                                      |
+| `npm audit` falhava por vulns em devDeps                          | `--omit=dev` para auditar apenas dependências de produção                         |
+
+### Desvios do plano original
+
+| Item planejado                     | Implementado                                | Motivo                                                                                         |
+| ---------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| peerDep `@types/express`           | `express >= 5.0.0`                          | Importamos de `express`, não de `@types/express`; `@nx/dependency-checks` valida imports reais |
+| peerDep `tsyringe`                 | Removido                                    | Nenhum import de tsyringe neste pacote; symbols usam `Symbol()` nativo                         |
+| Coverage threshold no pacote types | Desativado (`coverageThreshold: undefined`) | Pacote de contratos puros sem lógica executável para medir                                     |
+
+---
+
+## Prompt Original Utilizado
 
 ```
 **CONTEXTO**
