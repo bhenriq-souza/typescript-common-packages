@@ -67,6 +67,11 @@ jobs:
 
       - name: Push commits and tags
         run: git push --follow-tags
+      
+      - name: Configure npm authentication
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to npm (OIDC Trusted Publisher)
         env:
