@@ -110,15 +110,29 @@ jobs:
         run: |
           PR_NUM=${{ github.event.pull_request.number }}
           RUN_NUM=${{ github.run_number }}
-          NEXT_VERSION=$(npx nx release version --dry-run --specifier=patch 2>&1 | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "0.1.0")
-          DEV_VERSION="${NEXT_VERSION}-dev.pr${PR_NUM}.${RUN_NUM}"
+          DEV_VERSION="0.0.1-dev.pr${PR_NUM}.${RUN_NUM}"
           echo "dev_version=${DEV_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Set dev version in packages
+        run: |
+          VERSION="${{ steps.version.outputs.dev_version }}"
+          for pkg_json in $(find packages -name 'package.json' -maxdepth 2); do
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('$pkg_json', 'utf8'));
+              pkg.version = '$VERSION';
+              fs.writeFileSync('$pkg_json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+          done
+
+      - name: Build affected
+        run: npx nx affected -t build
 
       - name: Check uniqueness on AR
         run: |
+          VERSION="${{ steps.version.outputs.dev_version }}"
           for pkg in $(npx nx show projects --affected); do
             PKG_NAME="@bhs-dev/${pkg}"
-            VERSION="${{ steps.version.outputs.dev_version }}"
             if gcloud artifacts versions describe "${VERSION}" \
               --package="${PKG_NAME}" \
               --repository=typescript-packages-dev \
@@ -138,4 +152,4 @@ jobs:
           npx nx release publish \
             --registry="https://${AR_REGISTRY}/" \
             --tag=dev \
-            --ver="${{ steps.version.outputs.dev_version }}"
+            --first-release
