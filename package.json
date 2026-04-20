@@ -13,7 +13,16 @@
     "test": "nx run-many -t test",
     "lint": "nx run-many -t lint",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "eslint --fix"
+    ],
+    "*.{ts,js,json,md}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -31,12 +40,15 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.3",
     "express": "^5.2.1",
+    "husky": "^9.1.7",
     "jest": "^30.0.5",
     "jest-environment-node": "^30.0.2",
     "jest-util": "^30.0.2",
     "jsonc-eslint-parser": "^2.1.0",
+    "lint-staged": "^16.4.0",
     "nx": "~22.6.5",
     "nx-remotecache-gcs": "^2.2.0",
+    "nyc": "^18.0.0",
     "prettier": "^3.6.2",
     "reflect-metadata": "^0.2.2",
     "ts-jest": "^29.4.1",

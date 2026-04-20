@@ -7,6 +7,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  pull-requests: write
 
 env:
   NODE_VERSION: '22'
@@ -43,8 +44,28 @@ jobs:
       - name: Lint affected
         run: npx nx affected -t lint
 
-      - name: Test affected
-        run: npx nx affected -t test
+      - name: Test affected with coverage
+        run: npx nx affected -t test -- --coverage
+
+      - name: Merge coverage reports
+        if: always()
+        run: |
+          npx nyc merge coverage coverage/merged/coverage-final.json || true
+          # Generate json-summary for the comment action
+          if [ -f coverage/merged/coverage-final.json ]; then
+            npx nyc report \
+              --reporter=json-summary \
+              --temp-dir=coverage/merged \
+              --report-dir=coverage/merged 2>/dev/null || true
+          fi
+
+      - name: Coverage comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: MishaKav/jest-coverage-comment@main
+        with:
+          title: 'Coverage Report'
+          coverage-summary-path: coverage/merged/coverage-summary.json
+          junitxml-path: ''
 
       - name: Build affected
         run: npx nx affected -t build

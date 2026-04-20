@@ -58,7 +58,7 @@
     },
     "versionPlans": true
   },
-  "defaultBase": "main",
+  "defaultBase": "develop",
   "plugins": [
     {
       "plugin": "@nx/js",

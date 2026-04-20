@@ -7,4 +7,7 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/packages/typescript-common-types',
+  // Pacote de contratos puros (interfaces, types, symbols) — sem lógica de negócio para medir.
+  // Thresholds são aplicados no preset raiz para pacotes com implementação.
+  coverageThreshold: undefined,
 };

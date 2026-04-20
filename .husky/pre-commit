@@ -1,0 +1,2 @@
+npx lint-staged || exit 1
+npx nx affected -t test --base=HEAD~1 || exit 1
