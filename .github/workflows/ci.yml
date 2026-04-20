@@ -4,7 +4,6 @@ on:
   pull_request:
     branches: ['*']
   push:
-    branches: ['*']
     # Ignora push em branches de release (handled por release.yml).
     branches-ignore: ['main', 'develop']
 
