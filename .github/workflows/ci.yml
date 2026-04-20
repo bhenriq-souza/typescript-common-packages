@@ -147,12 +147,19 @@ jobs:
 
       - name: Configure npm for AR
         run: |
-          npx google-artifactregistry-auth
-          npm config set @bhs-dev:registry "https://${AR_REGISTRY}/"
+          AR_URL="https://${AR_REGISTRY}/"
+          # 1. Configura registry do scope no .npmrc do projeto
+          npm config set @bhs-dev:registry "${AR_URL}" --location=project
+          # 2. Gera auth tokens no .npmrc do usuario (~/.npmrc) a partir das credenciais WIF
+          npx google-artifactregistry-auth --repo-config=.npmrc --credential-config=.npmrc
+          # 3. Mostra config para debug (sem tokens)
+          echo "--- .npmrc (projeto) ---"
+          cat .npmrc
+          echo "--- registry config ---"
+          npm config get @bhs-dev:registry
 
       - name: Publish to AR
         run: |
           npx nx release publish \
-            --registry="https://${AR_REGISTRY}/" \
             --tag=dev \
             --first-release
