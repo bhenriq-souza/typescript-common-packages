@@ -1,0 +1,158 @@
+name: CI
+
+on:
+  pull_request:
+    branches: ['*']
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+env:
+  NODE_VERSION: '22'
+  NX_CLOUD_ACCESS_TOKEN: ''
+  AR_REGISTRY: us-central1-npm.pkg.dev/homelab-492918/typescript-packages-dev
+
+jobs:
+  ci:
+    name: Lint, Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Derive NX_BASE for affected commands
+        uses: nrwl/nx-set-shas@v4
+
+      - name: Check version plan
+        if: github.event_name == 'pull_request'
+        run: npx nx release plan:check
+
+      - name: Lint affected
+        run: npx nx affected -t lint
+
+      - name: Test affected with coverage
+        run: npx nx affected -t test -- --coverage
+
+      - name: Merge coverage reports
+        if: always()
+        run: |
+          npx nyc merge coverage coverage/merged/coverage-final.json || true
+          # Generate json-summary for the comment action
+          if [ -f coverage/merged/coverage-final.json ]; then
+            npx nyc report \
+              --reporter=json-summary \
+              --temp-dir=coverage/merged \
+              --report-dir=coverage/merged 2>/dev/null || true
+          fi
+
+      - name: Coverage comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: MishaKav/jest-coverage-comment@main
+        with:
+          title: 'Coverage Report'
+          coverage-summary-path: coverage/merged/coverage-summary.json
+          junitxml-path: ''
+
+      - name: Build affected
+        run: npx nx affected -t build
+
+      - name: Security audit
+        run: npm audit --audit-level=high --omit=dev
+
+  publish-dev:
+    name: Publish dev artifacts to AR
+    needs: ci
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Derive NX_BASE for affected commands
+        uses: nrwl/nx-set-shas@v4
+
+      - name: Authenticate to GCP (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/702302784311/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider
+          service_account: github-actions-ci@homelab-492918.iam.gserviceaccount.com
+
+      - name: Compute dev version
+        id: version
+        run: |
+          PR_NUM=${{ github.event.pull_request.number }}
+          RUN_NUM=${{ github.run_number }}
+          DEV_VERSION="0.0.1-dev.pr${PR_NUM}.${RUN_NUM}"
+          echo "dev_version=${DEV_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Set dev version in packages
+        run: |
+          VERSION="${{ steps.version.outputs.dev_version }}"
+          for pkg_json in $(find packages -name 'package.json' -maxdepth 2); do
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('$pkg_json', 'utf8'));
+              pkg.version = '$VERSION';
+              fs.writeFileSync('$pkg_json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+          done
+
+      - name: Build affected
+        run: npx nx affected -t build
+
+      - name: Check uniqueness on AR
+        run: |
+          VERSION="${{ steps.version.outputs.dev_version }}"
+          for pkg in $(npx nx show projects --affected); do
+            PKG_NAME="@bhs-dev/${pkg}"
+            if gcloud artifacts versions describe "${VERSION}" \
+              --package="${PKG_NAME}" \
+              --repository=typescript-packages-dev \
+              --location=us-central1 2>/dev/null; then
+              echo "ERRO: ${PKG_NAME}@${VERSION} ja existe no AR"
+              exit 1
+            fi
+          done
+
+      - name: Configure npm for AR
+        run: |
+          npx google-artifactregistry-auth
+          npm config set @bhs-dev:registry "https://${AR_REGISTRY}/"
+
+      - name: Publish to AR
+        run: |
+          npx nx release publish \
+            --registry="https://${AR_REGISTRY}/" \
+            --tag=dev \
+            --first-release
