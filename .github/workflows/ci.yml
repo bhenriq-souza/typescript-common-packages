@@ -99,6 +99,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Derive NX_BASE for affected commands
+        uses: nrwl/nx-set-shas@v4
+
       - name: Authenticate to GCP (WIF)
         uses: google-github-actions/auth@v2
         with:
