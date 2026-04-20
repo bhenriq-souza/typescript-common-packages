@@ -3,9 +3,6 @@ name: CI
 on:
   pull_request:
     branches: ['*']
-  push:
-    # Ignora push em branches de release (handled por release.yml).
-    branches-ignore: ['main', 'develop']
 
 permissions:
   contents: read
