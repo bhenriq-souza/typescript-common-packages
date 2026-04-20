@@ -19,7 +19,11 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "baseUrl": ".",
-    "paths": {}
+    "paths": {
+      "@bhs-dev/typescript-common-types": [
+        "packages/typescript-common-types/src/index.ts"
+      ]
+    }
   },
   "exclude": ["node_modules", "dist"]
 }
