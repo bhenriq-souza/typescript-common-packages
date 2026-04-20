@@ -1,0 +1,38 @@
+{
+  "name": "@bhs-dev/typescript-common-packages",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Monorepo Nx com pacotes TypeScript reutilizaveis extraidos do ts-express-app.",
+  "license": "ISC",
+  "author": "bhenriq-souza",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "nx run-many -t build",
+    "test": "nx run-many -t test",
+    "lint": "nx run-many -t lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@nx/js": "~22.6.5",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.3",
+    "jest": "^30.0.5",
+    "jest-environment-node": "^30.0.2",
+    "nx": "~22.6.5",
+    "nx-remotecache-gcs": "^2.2.0",
+    "prettier": "^3.6.2",
+    "ts-jest": "^29.4.1",
+    "typescript": "~5.8.2",
+    "typescript-eslint": "^8.39.0"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}

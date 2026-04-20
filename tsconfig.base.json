@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "es2016",
+    "module": "nodeNext",
+    "moduleResolution": "nodenext",
+    "lib": ["es2020"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {}
+  },
+  "exclude": ["node_modules", "dist"]
+}

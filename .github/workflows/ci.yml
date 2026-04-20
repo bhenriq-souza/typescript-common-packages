@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  pull_request:
+    branches: ['*']
+  push:
+    branches: ['*']
+    # Ignora push em branches de release (handled por release.yml).
+    branches-ignore: ['main', 'develop']
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  NODE_VERSION: '22'
+  NX_CLOUD_ACCESS_TOKEN: ''
+  AR_REGISTRY: us-central1-npm.pkg.dev/homelab-492918/typescript-packages-dev
+
+jobs:
+  ci:
+    name: Lint, Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Derive NX_BASE for affected commands
+        uses: nrwl/nx-set-shas@v4
+
+      - name: Check version plan
+        if: github.event_name == 'pull_request'
+        run: npx nx release plan:check
+
+      - name: Lint affected
+        run: npx nx affected -t lint
+
+      - name: Test affected
+        run: npx nx affected -t test
+
+      - name: Build affected
+        run: npx nx affected -t build
+
+      - name: Security audit
+        run: npm audit --audit-level=high
+
+  publish-dev:
+    name: Publish dev artifacts to AR
+    needs: ci
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Authenticate to GCP (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/702302784311/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider
+          service_account: github-actions-ci@homelab-492918.iam.gserviceaccount.com
+
+      - name: Compute dev version
+        id: version
+        run: |
+          PR_NUM=${{ github.event.pull_request.number }}
+          RUN_NUM=${{ github.run_number }}
+          NEXT_VERSION=$(npx nx release version --dry-run --specifier=patch 2>&1 | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "0.1.0")
+          DEV_VERSION="${NEXT_VERSION}-dev.pr${PR_NUM}.${RUN_NUM}"
+          echo "dev_version=${DEV_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Check uniqueness on AR
+        run: |
+          for pkg in $(npx nx show projects --affected); do
+            PKG_NAME="@bhs-dev/${pkg}"
+            VERSION="${{ steps.version.outputs.dev_version }}"
+            if gcloud artifacts versions describe "${VERSION}" \
+              --package="${PKG_NAME}" \
+              --repository=typescript-packages-dev \
+              --location=us-central1 2>/dev/null; then
+              echo "ERRO: ${PKG_NAME}@${VERSION} ja existe no AR"
+              exit 1
+            fi
+          done
+
+      - name: Configure npm for AR
+        run: |
+          npx google-artifactregistry-auth
+          npm config set @bhs-dev:registry "https://${AR_REGISTRY}/"
+
+      - name: Publish to AR
+        run: |
+          npx nx release publish \
+            --registry="https://${AR_REGISTRY}/" \
+            --tag=dev \
+            --ver="${{ steps.version.outputs.dev_version }}"

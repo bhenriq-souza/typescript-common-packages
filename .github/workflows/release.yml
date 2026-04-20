@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: write
+  id-token: write
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  release:
+    name: Version, Tag & Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Derive NX_BASE for affected commands
+        uses: nrwl/nx-set-shas@v4
+
+      - name: Lint affected
+        run: npx nx affected -t lint
+
+      - name: Test affected
+        run: npx nx affected -t test
+
+      - name: Build affected
+        run: npx nx affected -t build
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine dist-tag
+        id: tag
+        run: |
+          if [[ "${{ github.ref_name }}" == "main" ]]; then
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "npm_tag=next" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Version (consume plans, update package.json, commit & tag)
+        run: |
+          npx nx release version
+          npx nx release changelog
+
+      - name: Push commits and tags
+        run: git push --follow-tags
+
+      - name: Check uniqueness on npm
+        run: |
+          for pkg in $(npx nx show projects --affected); do
+            PKG_NAME="@bhs-dev/${pkg}"
+            VERSION=$(node -p "require('./packages/${pkg}/package.json').version")
+            if npm view "${PKG_NAME}@${VERSION}" version 2>/dev/null; then
+              echo "ERRO: ${PKG_NAME}@${VERSION} ja existe no npm"
+              exit 1
+            fi
+          done
+
+      - name: Publish to npm (OIDC Trusted Publisher)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npx nx release publish \
+            --tag=${{ steps.tag.outputs.npm_tag }} \
+            --registry=https://registry.npmjs.org \
+            --provenance
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for tag in $(git tag --points-at HEAD); do
+            gh release create "${tag}" \
+              --title "${tag}" \
+              --generate-notes \
+              --verify-tag || true
+          done
