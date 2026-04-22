@@ -47,6 +47,8 @@
     "projectsRelationship": "independent",
     "version": {
       "preVersionCommand": "npx nx run-many -t build",
+      "preserveMatchingDependencyRanges": false,
+      "updateDependents": "never",
       "generatorOptions": {
         "currentVersionResolver": "git-tag",
         "specifierSource": "version-plans"

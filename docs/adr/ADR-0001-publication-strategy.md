@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — com [Addendum 2026-04-20](#addendum-2026-04-20--primeira-publicação-e-desvios-observados) registrando desvios operacionais na bootstrap da pipeline.
+Accepted — com [Addendum 2026-04-20](#addendum-2026-04-20--primeira-publicação-e-desvios-observados) registrando desvios operacionais na bootstrap da pipeline e [Addendum 2026-04-22](#addendum-2026-04-22--reformulação-do-trigger-de-release-branch-dedicada) reformulando o trigger de release para o modelo de branch dedicada.
 
 ## Context
 
@@ -260,3 +260,159 @@ Com isso, o canal `main → npm público (tag latest)` da **Decision §2** está
 ### Condição de revisão deste ADR
 
 Quando phase-04b for retomada (após publish inaugural de todos os pacotes do monorepo) e concluída — `NPM_TOKEN` removido do repositório — atualizar a tabela §7 (Autenticação) refletindo o estado final e marcar este addendum como "resolvido" com nota de data.
+
+---
+
+## Addendum 2026-04-22 — Reformulação do trigger de release (branch dedicada)
+
+### Contexto
+
+A tentativa de publicar o segundo pacote do monorepo (`@bhs-dev/typescript-common-errors`) expôs duas falhas estruturais do modelo original (Decision §2 + §6):
+
+1. **Trigger por merge é implícito demais.** Cada merge em `develop`/`main` dispara o release de todos os pacotes "afetados" no run. Isso cria release acidental sempre que código de pacote é mesclado por motivo não-release (refactor, chore, fix de doc que toca código). A intenção de publicar não é separável da intenção de mesclar.
+
+2. **`currentVersionResolver: git-tag` + estado parcial corrompe o release.** O publish inaugural de `typescript-common-types@0.0.1` foi feito sem que tag git correspondente fosse pushada para `origin`. A primeira tentativa de release de `errors` então caiu num laço:
+   - `nx release` não encontrava tag para resolver versão corrente de `types`
+   - Aplicava o version-plan (`minor`) e bumpava localmente para `0.1.0`
+   - Tentava atualizar a dep de `errors` (`^0.0.1` → `^0.1.0`)
+   - `preserveMatchingDependencyRanges` (default `true`) bloqueava a widening
+   - Workflow morria antes de pushar a tag → ciclo se repetia a cada run
+
+A combinação trigger-implícito + state-drift torna o sistema frágil de uma forma não recuperável sem intervenção manual a cada incidente.
+
+### Decisão
+
+Substituir o trigger por merge por **release branch dedicada**, com semântica explícita.
+
+#### Novo trigger
+
+```yaml
+on:
+  push:
+    branches:
+      - 'releases/*/v*'
+```
+
+Padrão da branch: `releases/<package>/v<version>`. Exemplos:
+
+| Branch                                            | Pacote                     | Versão         | dist-tag derivada |
+| ------------------------------------------------- | -------------------------- | -------------- | ----------------- |
+| `releases/typescript-common-types/v1.0.0`         | `typescript-common-types`  | `1.0.0`        | `latest`          |
+| `releases/typescript-common-types/v1.1.0-rc.1`    | `typescript-common-types`  | `1.1.0-rc.1`   | `rc`              |
+| `releases/typescript-common-errors/v0.2.0-next.3` | `typescript-common-errors` | `0.2.0-next.3` | `next`            |
+
+A regra de derivação do dist-tag: se a versão tem suffix pré-release (`-<canal>.<n>`), o dist-tag é `<canal>`. Se não tem suffix, é `latest`.
+
+#### Tabela §2 atualizada
+
+| Gatilho                                          | Destino                             | Tag/Canal                            | Visibilidade |
+| ------------------------------------------------ | ----------------------------------- | ------------------------------------ | ------------ |
+| PR aberto ou atualizado                          | GCP Artifact Registry (formato npm) | N/A — instalado por versão exata     | Privado      |
+| Merge em `develop`                               | **Nenhum publish**                  | —                                    | —            |
+| Push em `releases/<pkg>/v<version>` (sem suffix) | npm público                         | `latest`                             | Público      |
+| Push em `releases/<pkg>/v<version>-<canal>.<n>`  | npm público                         | `<canal>` (ex: `rc`, `next`, `beta`) | Público      |
+
+#### Branch `main` aposentada
+
+`main` deixa de ter papel operacional. `develop` é a única branch long-lived do projeto. Justificativa:
+
+- Promoção entre canais (next → latest) é controlada por **dist-tag derivada da versão**, não por ramo
+- Manter `main` como "espelho do publicado" duplicaria estado já capturado por git tags `<pkg>@<version>` e pelo registry npm
+- Hotfix-from-prod, se necessário no futuro, pode ser modelado como nova release branch a partir do tag git correspondente — sem precisar de `main`
+
+`main` pode ser deletada do remoto após o primeiro release no novo modelo.
+
+#### Source of truth da versão
+
+A **versão na branch é autoritativa**. O workflow chama:
+
+```bash
+npx nx release version <X.Y.Z> --projects=<package> --first-release
+npx nx release changelog <X.Y.Z> --projects=<package> --first-release
+```
+
+Ou seja: o `nx release version` recebe a versão **explicitamente**, derivada do nome da branch. Version-plans continuam obrigatórios (validados em `ci.yml` via `nx release plan:check`) para:
+
+- Documentar intenção de bump (major/minor/patch) auditável no histórico do PR
+- Alimentar o corpo do changelog gerado
+
+Mas o cálculo da versão final não depende mais de `currentVersionResolver: git-tag` na hora do release — a branch é a fonte. Isso elimina a classe inteira de falhas por state-drift.
+
+#### `preserveMatchingDependencyRanges: false`
+
+Adicionado em `nx.json` sob `release.version.generatorOptions`. Permite que o Nx atualize automaticamente ranges de deps internas quando o pacote irmão é bumpado. Aceitável porque:
+
+- Este monorepo controla o grafo inteiro de deps internas
+- Releases por branch dedicada já são intencionais por construção, então widening silenciosa de ranges não é um risco oculto
+
+#### Cascata de releases inter-pacote
+
+Quando uma release com breaking change é necessária para um pacote do qual outros dependem, o fluxo passa a ser **explicitamente sequencial**:
+
+**Cenário:** publicar `typescript-common-types@2.0.0` (breaking) com cascata para `typescript-common-errors`.
+
+1. **PR para `develop`** — adiciona o version-plan de `types` com bump `major` e o version-plan de `errors` com o bump apropriado, atualizando também o range de dep em `errors/package.json` (de `^1.x.x` para `^2.0.0`). Esta PR sozinha **não publica nada**.
+2. **Merge em `develop`** — apenas integra os planos. Nenhum workflow de release dispara.
+3. **Branch `releases/typescript-common-types/v2.0.0`** criada a partir de `develop` e pushada → workflow publica `types@2.0.0`. Back-merge PR é aberto automaticamente para `develop`.
+4. **Merge do back-merge** em `develop` — propaga consumo do plan de `types` e atualização do lockfile.
+5. **Branch `releases/typescript-common-errors/v0.X.0`** criada a partir de `develop` (já com `types@2.0.0` publicado) e pushada → workflow publica `errors@0.X.0`. Back-merge PR aberto automaticamente.
+6. **Merge do back-merge** — fecha o ciclo.
+
+Cada release fica auditável de forma isolada (commit, tag, GitHub Release próprios) e o consumidor pode adotar `types@2.0.0` antes mesmo de `errors@0.X.0` estar disponível, se quiser.
+
+#### Auto back-merge para `develop`
+
+Após publish bem-sucedido, o workflow abre PR automático da release branch de volta para `develop` contendo:
+
+- Bump de versão no `package.json` do pacote
+- Version-plan consumido (deletado)
+- `package-lock.json` atualizado para refletir a nova versão publicada
+- Changelog gerado pelo Nx
+
+A merge desse PR é **manual** — serve como ponto de inspeção humana antes de propagar artefatos de release para a branch principal. Após o merge, a release branch pode ser deletada.
+
+#### Lockfile pós-release
+
+A versão recém-publicada só existe no registry **depois** do step `nx release publish`. Ordem dos steps relevantes no `release.yml`:
+
+1. `nx release version` + `nx release changelog` (commita bumps + cria tag local)
+2. `git push --follow-tags` (publica commits + tags)
+3. `nx release publish` (publica no npm — versão agora existe no registry)
+4. `npm install --package-lock-only --ignore-scripts` (lockfile resolve a versão recém-publicada)
+5. Commit + push do lockfile na release branch
+6. `gh release create` (GitHub Release)
+7. `gh pr create` (back-merge PR)
+
+### Trade-offs aceitos
+
+**Positivos:**
+
+- Release acidental zero — exige criação explícita de branch
+- Versão visível e auditável no nome da branch antes do publish
+- Reversão trivial: deletar a branch antes do workflow rodar
+- dist-tag derivada da versão elimina necessidade de mapeamento branch→canal
+- Cascata inter-pacote vira fluxo explícito documentado em PRs sequenciais
+- Eliminação completa da classe de bugs por state-drift entre git-tag/registry/manifest
+
+**Negativos:**
+
+- Mais cerimônia operacional: cada release exige criação de branch e merge de back-merge PR
+- Cascata de N pacotes vira N branches sequenciais (intencional, mas pesado em rebumps grandes)
+- Branch `main` aposentada pode confundir contribuidores acostumados ao GitFlow clássico
+- Lockfile só pode ser atualizado pós-publish (chicken-egg da versão no registry) — exige ordem específica de steps no workflow
+
+### Itens superseded por este Addendum
+
+- **Decision §2 — tabela "Registry — abordagem híbrida":** linhas para `develop` e `main` substituídas pela tabela acima
+- **Decision §6 — `release.yml` (trigger: `push` em `develop` e `main`):** substituído pelo trigger `releases/*/v*`
+- **Decision §6 — sequência de steps do `release.yml`:** substituída pela sequência descrita em "Lockfile pós-release"
+
+Os demais pontos do ADR-0001 permanecem válidos sem modificação (scope npm, esquema de versionamento para PR dev, autenticação, cache GCS, segurança, alternativas consideradas).
+
+### Condição de revisão deste Addendum
+
+Reavaliar se algum dos seguintes acontecer:
+
+- Necessidade comprovada de hotfix-from-prod recorrente (justificaria reintroduzir `main`)
+- Volume de releases tornar a cerimônia de branch+back-merge gargalo (justificaria voltar para trigger por merge com proteções adicionais)
+- Mudança no Nx Release que mude semântica de `--projects` ou de version-plans

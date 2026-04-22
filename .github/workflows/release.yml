@@ -1,19 +1,32 @@
 name: Release
 
+# Modelo: release por branch dedicada (ADR-0001 Addendum 2026-04-22)
+#
+# Trigger: push em branch `releases/<package>/v<version>`.
+# Exemplos:
+#   - releases/typescript-common-types/v1.0.0       -> dist-tag: latest
+#   - releases/typescript-common-types/v1.1.0-rc.1  -> dist-tag: rc
+#   - releases/typescript-common-errors/v0.2.0-next.3 -> dist-tag: next
+#
+# Cada branch publica EXATAMENTE UM pacote. Cascatas inter-pacote exigem
+# branches sequenciais, conforme documentado no ADR.
+
 on:
   push:
-    branches: [develop, main]
+    branches:
+      - 'releases/*/v*'
 
 permissions:
   contents: write
   id-token: write
+  pull-requests: write
 
 env:
   NODE_VERSION: '22'
 
 jobs:
   release:
-    name: Version, Tag & Publish
+    name: Validate, Version, Publish
     runs-on: ubuntu-latest
 
     steps:
@@ -22,6 +35,21 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Parse release branch
+        id: parse
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          if [[ ! "$BRANCH" =~ ^releases/([^/]+)/v(.+)$ ]]; then
+            echo "::error::Branch '$BRANCH' não casa o padrão releases/<package>/v<version>"
+            exit 1
+          fi
+          PACKAGE="${BASH_REMATCH[1]}"
+          VERSION="${BASH_REMATCH[2]}"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "package=$PACKAGE" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "::notice::Release alvo: $PACKAGE@$VERSION (branch $BRANCH)"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -33,63 +61,124 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Derive NX_BASE for affected commands
-        uses: nrwl/nx-set-shas@v4
+      - name: Validate package exists in workspace
+        run: |
+          if ! npx nx show project ${{ steps.parse.outputs.package }} > /dev/null 2>&1; then
+            echo "::error::Projeto '${{ steps.parse.outputs.package }}' não existe no workspace Nx"
+            exit 1
+          fi
 
-      - name: Lint affected
-        run: npx nx affected -t lint
+      - name: Lint package
+        run: npx nx run ${{ steps.parse.outputs.package }}:lint
 
-      - name: Test affected
-        run: npx nx affected -t test
+      - name: Test package
+        run: npx nx run ${{ steps.parse.outputs.package }}:test
 
-      - name: Build affected
-        run: npx nx affected -t build
+      - name: Build package
+        run: npx nx run ${{ steps.parse.outputs.package }}:build
+
+      - name: Determine dist-tag
+        id: tag
+        run: |
+          VERSION="${{ steps.parse.outputs.version }}"
+          if [[ "$VERSION" == *"-"* ]]; then
+            SUFFIX="${VERSION#*-}"
+            CHANNEL="${SUFFIX%%.*}"
+            echo "npm_tag=$CHANNEL" >> "$GITHUB_OUTPUT"
+          else
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Determine dist-tag
-        id: tag
-        run: |
-          if [[ "${{ github.ref_name }}" == "main" ]]; then
-            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
-          else
-            echo "npm_tag=next" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Version, changelog, commit & tag
         run: |
-          npx nx release \
-            --skip-publish \
+          npx nx release version ${{ steps.parse.outputs.version }} \
+            --projects=${{ steps.parse.outputs.package }} \
+            --first-release
+          npx nx release changelog ${{ steps.parse.outputs.version }} \
+            --projects=${{ steps.parse.outputs.package }} \
             --first-release
 
       - name: Push commits and tags
         run: git push --follow-tags
-      
+
       - name: Configure npm authentication
         run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish to npm (OIDC Trusted Publisher)
+      - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npx nx release publish \
+            --projects=${{ steps.parse.outputs.package }} \
             --tag=${{ steps.tag.outputs.npm_tag }} \
             --registry=https://registry.npmjs.org \
-            --provenance \
             --first-release
+
+      - name: Update lockfile
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Commit and push lockfile (if changed)
+        run: |
+          if ! git diff --quiet package-lock.json; then
+            git add package-lock.json
+            git commit -m "chore(release): atualiza package-lock.json para ${{ steps.parse.outputs.package }}@${{ steps.parse.outputs.version }}"
+            git push
+          else
+            echo "::notice::package-lock.json sem alterações — nada a commitar"
+          fi
 
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for tag in $(git tag --points-at HEAD); do
-            gh release create "${tag}" \
-              --title "${tag}" \
-              --generate-notes \
-              --verify-tag || true
-          done
+          TAG="${{ steps.parse.outputs.package }}@${{ steps.parse.outputs.version }}"
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            --verify-tag
+
+      - name: Open back-merge PR to develop
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ steps.parse.outputs.branch }}"
+          TITLE="chore(release): back-merge ${{ steps.parse.outputs.package }}@${{ steps.parse.outputs.version }}"
+          BODY=$(cat <<EOF
+          Back-merge automático após publicação bem-sucedida de \`${{ steps.parse.outputs.package }}@${{ steps.parse.outputs.version }}\`.
+
+          ## Conteúdo
+
+          - Bump de versão no \`package.json\` do pacote
+          - Consumo do version-plan correspondente
+          - Atualização do \`package-lock.json\`
+          - Changelog gerado pelo Nx Release
+
+          ## Por que este PR existe
+
+          O modelo de release por branch dedicada (ADR-0001 Addendum 2026-04-22) gera os artefatos de versão na branch \`releases/...\`. Este back-merge propaga esses artefatos de volta para \`develop\`, garantindo que:
+
+          - O version-plan consumido não seja recriado por engano em PRs futuras
+          - O \`package-lock.json\` em \`develop\` reflita a versão publicada
+          - As próximas releases partam do estado atualizado
+
+          ## Pós-merge
+
+          Após o merge, a branch \`$BRANCH\` pode ser deletada — sua finalidade está cumprida.
+
+          ---
+
+          🤖 Criado automaticamente pelo workflow de release.
+          EOF
+          )
+          gh pr create \
+            --base develop \
+            --head "$BRANCH" \
+            --title "$TITLE" \
+            --body "$BODY"

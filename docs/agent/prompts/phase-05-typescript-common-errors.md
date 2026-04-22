@@ -1,7 +1,8 @@
-# Phase 05: Segundo Pacote — `typescript-common-errors` — CONCLUÍDA
+# Phase 05: Segundo Pacote — `typescript-common-errors` — IMPLEMENTAÇÃO CONCLUÍDA
 
-> **Status:** ✅ Concluída em 2026-04-22
-> **Branch:** `feat/initial-configs`
+> **Status:** ✅ Implementação concluída em 2026-04-22
+> **Publicação:** 🟡 Pendente — bloqueada por divergência entre git tag, manifests locais e versão publicada de `typescript-common-types`
+> **Branch original de implementação:** `feat/initial-configs`
 
 ---
 
@@ -24,6 +25,122 @@
 | Test                          | ✅     | `nx run typescript-common-errors:test`                                                                                                     |
 | Lint                          | ✅     | `nx run typescript-common-errors:lint`                                                                                                     |
 | Grafo Nx                      | ✅     | Dependência estática `typescript-common-errors` → `typescript-common-types` confirmada                                                     |
+
+### Pendência aberta de publicação
+
+Apesar de a implementação do pacote estar concluída e validada localmente, o **publish do pacote `@bhs-dev/typescript-common-errors` ainda não foi concluído**.
+
+#### Estado atual confirmado
+
+| Item                                                | Estado atual                                           | Evidência                                                            |
+| --------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
+| `@bhs-dev/typescript-common-types` publicado no npm | `0.0.1`                                                | `npm view @bhs-dev/typescript-common-types version` retornou `0.0.1` |
+| `packages/typescript-common-types/package.json`     | `0.0.1`                                                | Mantido alinhado ao pacote publicado                                 |
+| `packages/typescript-common-errors/package.json`    | depende de `@bhs-dev/typescript-common-types: ^0.0.1`  | Mantido alinhado ao pacote publicado                                 |
+| `release.yml`                                       | usa `nx release` com `currentVersionResolver: git-tag` | O resolver de versão atual vem de tags git, não do npm registry      |
+| Workflow `release.yml`                              | falha no step `Version, changelog, commit & tag`       | `preserveMatchingDependencyRanges` bloqueia a release                |
+
+#### Erro atual no `release.yml`
+
+Trecho relevante do log observado após merge em `develop`:
+
+```text
+typescript-common-errors Applied semver relative bump "minor" ... to get new version 0.1.0
+typescript-common-types Resolved the current version as 0.1.0 from git tag "typescript-common-types@0.1.0"
+typescript-common-types No changes were detected within version plans
+NX "preserveMatchingDependencyRanges" is enabled for "dependencies" and the new version "^0.1.0" is outside the current range for "@bhs-dev/typescript-common-types" in manifest "dist/packages/typescript-common-errors/package.json".
+```
+
+#### Leitura atual do problema
+
+- O `nx release` está tratando **git tags** como fonte de verdade para a versão corrente de `typescript-common-types`.
+- O workflow resolve `typescript-common-types` como **`0.1.0`** a partir da tag `typescript-common-types@0.1.0`.
+- O **npm registry**, porém, ainda expõe **apenas `0.0.1`** para `@bhs-dev/typescript-common-types`.
+- O manifesto do pacote `errors` está em `^0.0.1`, o que é coerente com o npm público atual, mas **não** com a versão corrente resolvida pelo `nx release` a partir da tag.
+- Tentar mudar o range para `^0.1.0` torna o `npm install` inconsistente com a realidade do registry, porque `@bhs-dev/typescript-common-types@0.1.0` **não existe publicado** no npm.
+
+**Conclusão provisória:** existe uma divergência não resolvida entre:
+
+1. a versão publicada no npm de `@bhs-dev/typescript-common-types` (`0.0.1`)
+2. a versão corrente resolvida por tag git no `nx release` (`0.1.0`)
+3. o range de dependência interna que `typescript-common-errors` pode declarar sem quebrar o install
+
+Enquanto essa reconciliação não for feita, a implementação da Fase 05 fica **entregue**, mas a publicação permanece **pendente**.
+
+### Tentativas de correção já realizadas neste chat
+
+#### 1. Implementação e validação local do pacote
+
+- `typescript-common-errors` foi criado, com `CustomError`, factories HTTP, barrel export, testes, README e version plan.
+- Validações locais executadas com sucesso:
+  - `nx run typescript-common-errors:build`
+  - `nx run typescript-common-errors:test`
+  - `nx run typescript-common-errors:lint`
+
+#### 2. Correção do `npm ci` no CI do PR
+
+**Sintoma:** o job `Install dependencies` falhou com `npm ci` reclamando que `package-lock.json` e `package.json` estavam fora de sincronia, faltando `@bhs-dev/typescript-common-errors@0.0.1` no lockfile.
+
+**Ação feita:**
+
+- Executado `npm install --package-lock-only --ignore-scripts`
+- Validado com `npm ci --ignore-scripts --dry-run`
+
+**Resultado:** o CI do PR passou após o `package-lock.json` atualizado ser incluído.
+
+#### 3. Correção do comentário de coverage no PR
+
+**Sintoma:** o PR mostrava `NaN% / Unknown%` no comentário de coverage, embora o report local estivesse correto.
+
+**Diagnóstico:**
+
+- Os testes com `--coverage` rodavam normalmente.
+- O comentário do PR dependia de `coverage/merged/coverage-summary.json`.
+- O workflow tentava usar `nyc merge coverage ...`, mas a cobertura era gerada por pacote em subpastas e o merge saía vazio (`{}`).
+
+**Ação feita:**
+
+- Ajustado `.github/workflows/ci.yml` para agregar diretamente os `coverage-summary.json` gerados por pacote.
+
+**Resultado:** o comentário de coverage do PR deixou de depender de um merge vazio e passou a consolidar os summaries por pacote corretamente.
+
+#### 4. Investigação do erro de release (`preserveMatchingDependencyRanges`)
+
+**Primeiras hipóteses e testes feitos:**
+
+- Verificado que `^0.0.1` **não** satisfaz `0.1.0`
+- Verificado que `^0.1.0` satisfaz `0.1.0`
+- Executado `CI=1 npx nx release --skip-publish --first-release --dry-run`
+
+**Ações tentadas:**
+
+- Tentativa A: alterar `packages/typescript-common-errors/package.json` para depender de `@bhs-dev/typescript-common-types: ^0.1.0`
+- Tentativa B: alinhar `packages/typescript-common-types/package.json` para `0.1.0`
+
+**Resultados observados:**
+
+- `npm install --package-lock-only --ignore-scripts` falhou com `ETARGET` porque `@bhs-dev/typescript-common-types@^0.1.0` **não existe** no npm público
+- Foi aberto um PR intermediário com essas mudanças de manifesto, mas ele tocava `typescript-common-types` indevidamente e foi fechado
+- Os manifests foram então devolvidos ao estado coerente com o registry:
+  - `packages/typescript-common-types/package.json` → `0.0.1`
+  - `packages/typescript-common-errors/package.json` → `@bhs-dev/typescript-common-types: ^0.0.1`
+
+#### 5. Confirmações obtidas
+
+- `CI=1 npx nx release plan:check --verbose` **passa** localmente
+- O problema atual **não** é falta de version plan
+- O problema atual **não** é `package-lock.json`
+- O problema atual **não** é build/test/lint/coverage
+- O problema atual está concentrado na reconciliação entre:
+  - tags git consumidas pelo `nx release`
+  - versões efetivamente publicadas no npm
+  - ranges internos entre `typescript-common-types` e `typescript-common-errors`
+
+#### 6. O que não deve ser repetido sem nova análise
+
+- Não abrir novo PR alterando `packages/typescript-common-types/package.json` apenas para “acompanhar” o erro do release
+- Não subir `@bhs-dev/typescript-common-types: ^0.1.0` em `packages/typescript-common-errors/package.json` enquanto o npm registry continuar expondo somente `0.0.1`
+- Não tratar o erro como problema de version plan, coverage ou lockfile: esses pontos já foram validados separadamente
 
 ### Ajustes aprendidos durante a fase
 
@@ -172,3 +289,12 @@ Conforme MONOREPO_PROPOSE.md, `typescript-common-errors` contém:
 - [x] `package.json` com dependency em `@bhs-dev/typescript-common-types`
 - [x] Nenhum import de implementação externa (apenas types do pacote irmão)
 - [x] `CustomErrorOptions` é importado de `@bhs-dev/typescript-common-types`, não redefinido
+
+## Situação Final da Phase
+
+- [x] Implementação do pacote concluída
+- [x] Validação local de build, test, lint e coverage concluída
+- [x] CI de pull request estabilizado (`npm ci` + comentário de coverage)
+- [ ] Publicação/release do pacote concluída
+
+**Pendência remanescente:** diagnosticar e corrigir definitivamente a divergência entre `git tag`, `version plan`, versão publicada de `typescript-common-types` no npm e range de dependência interna consumido por `typescript-common-errors`.
