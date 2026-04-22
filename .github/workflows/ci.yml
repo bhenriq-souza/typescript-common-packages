@@ -50,14 +50,66 @@ jobs:
       - name: Merge coverage reports
         if: always()
         run: |
-          npx nyc merge coverage coverage/merged/coverage-final.json || true
-          # Generate json-summary for the comment action
-          if [ -f coverage/merged/coverage-final.json ]; then
-            npx nyc report \
-              --reporter=json-summary \
-              --temp-dir=coverage/merged \
-              --report-dir=coverage/merged 2>/dev/null || true
-          fi
+          mkdir -p coverage/merged
+          node <<'EOF'
+          const fs = require('fs');
+          const path = require('path');
+
+          const summaryFiles = [];
+          const metrics = ['lines', 'statements', 'functions', 'branches', 'branchesTrue'];
+          const merged = Object.fromEntries(
+            metrics.map((metric) => [metric, { total: 0, covered: 0, skipped: 0, pct: 'Unknown' }]),
+          );
+
+          function walk(dir) {
+            if (!fs.existsSync(dir)) return;
+
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              const fullPath = path.join(dir, entry.name);
+
+              if (entry.isDirectory()) {
+                if (fullPath === path.join('coverage', 'merged')) continue;
+                walk(fullPath);
+                continue;
+              }
+
+              if (entry.name === 'coverage-summary.json') {
+                summaryFiles.push(fullPath);
+              }
+            }
+          }
+
+          walk('coverage');
+
+          for (const filePath of summaryFiles) {
+            const summary = JSON.parse(fs.readFileSync(filePath, 'utf8')).total ?? {};
+
+            for (const metric of metrics) {
+              const current = summary[metric];
+              if (!current || typeof current.total !== 'number' || typeof current.covered !== 'number') {
+                continue;
+              }
+
+              merged[metric].total += current.total;
+              merged[metric].covered += current.covered;
+              merged[metric].skipped += current.skipped ?? 0;
+            }
+          }
+
+          for (const metric of metrics) {
+            merged[metric].pct =
+              merged[metric].total === 0
+                ? 'Unknown'
+                : Number(((merged[metric].covered / merged[metric].total) * 100).toFixed(2));
+          }
+
+          fs.writeFileSync(
+            path.join('coverage', 'merged', 'coverage-summary.json'),
+            JSON.stringify({ total: merged }, null, 2) + '\n',
+          );
+
+          console.log(`Merged ${summaryFiles.length} coverage summaries.`);
+          EOF
 
       - name: Coverage comment on PR
         if: github.event_name == 'pull_request' && always()
