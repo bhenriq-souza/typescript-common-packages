@@ -22,6 +22,9 @@
     "paths": {
       "@bhs-dev/typescript-common-types": [
         "packages/typescript-common-types/src/index.ts"
+      ],
+      "@bhs-dev/typescript-common-errors": [
+        "packages/typescript-common-errors/src/index.ts"
       ]
     }
   },
