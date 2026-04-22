@@ -1,11 +1,50 @@
-# Phase 05: Segundo Pacote — `typescript-common-errors`
+# Phase 05: Segundo Pacote — `typescript-common-errors` — CONCLUÍDA
 
-> **Objetivo:** Criar o pacote `@bhs-dev/typescript-common-errors` — erros customizados com factories HTTP, segundo pacote do grafo de dependências.
-> **Pré-requisito:** Phase 04 concluída (`typescript-common-types` implementado e validado).
+> **Status:** ✅ Concluída em 2026-04-22
+> **Branch:** `feat/initial-configs`
 
 ---
 
-## Prompt para Novo Chat
+## Resultado Final
+
+### Pacote `@bhs-dev/typescript-common-errors`
+
+| Entregável                    | Status | Detalhes                                                                                                                                   |
+| ----------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Geração via `nx g @nx/js:lib` | ✅     | `packages/typescript-common-errors/` com `tsc`, `eslint` e `jest`                                                                          |
+| `package.json`                | ✅     | `0.0.1`, `publishConfig.access: "public"`, `engines.node >= 22`, dependency em `@bhs-dev/typescript-common-types`, zero `peerDependencies` |
+| Implementação `CustomError`   | ✅     | `src/errors/custom-error.ts` com `status`, `code`, `details`, `isOperational`, `exposeMessage`, `cause` opcional e 9 factories HTTP        |
+| Barrel export                 | ✅     | `src/errors/index.ts` + `src/index.ts` reexportando a API pública                                                                          |
+| Reuso de `CustomErrorOptions` | ✅     | Importado de `@bhs-dev/typescript-common-types`, sem redefinição local                                                                     |
+| Testes unitários              | ✅     | 2 suites, 13 testes (`custom-error.spec.ts` + `barrel.spec.ts`)                                                                            |
+| Path alias raiz               | ✅     | `@bhs-dev/typescript-common-errors` apontando para `packages/typescript-common-errors/src/index.ts`                                        |
+| README do pacote              | ✅     | Documentação específica do pacote com propriedades, factories e exemplos de uso                                                            |
+| Version plan                  | ✅     | `.nx/version-plans/typescript-common-errors-initial.md` com nome Nx `typescript-common-errors`                                             |
+| Build                         | ✅     | `nx run typescript-common-errors:build`                                                                                                    |
+| Test                          | ✅     | `nx run typescript-common-errors:test`                                                                                                     |
+| Lint                          | ✅     | `nx run typescript-common-errors:lint`                                                                                                     |
+| Grafo Nx                      | ✅     | Dependência estática `typescript-common-errors` → `typescript-common-types` confirmada                                                     |
+
+### Ajustes aprendidos durante a fase
+
+| Item                          | Status | Detalhes                                                                                                                                                |
+| ----------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fonte de `CustomErrorOptions` | ✅     | O prompt original citava `ts-express-app/src/types/common.types.ts`, mas a fonte de verdade já estava consolidada em `@bhs-dev/typescript-common-types` |
+| Padrão de config Jest         | ✅     | O monorepo segue `jest.config.cts`, não `jest.config.ts`                                                                                                |
+| Convenção Nx vs nome npm      | ✅     | Os comandos `nx run ...` usam o nome do projeto (`typescript-common-errors`), enquanto o nome npm fica no `package.json`                                |
+| Higiene de entrega            | ✅     | README específico do pacote e version plan passaram a ser parte do fechamento esperado da fase                                                          |
+
+### Desvios do plano original
+
+| Item planejado                                                                              | Implementado                                                 | Motivo                                                            |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `ts-express-app/src/types/common.types.ts` como referência direta para `CustomErrorOptions` | Reuso do tipo a partir de `@bhs-dev/typescript-common-types` | O contrato já havia sido extraído e estabilizado na Fase 04       |
+| `jest.config.ts`                                                                            | `jest.config.cts`                                            | Este é o padrão efetivamente gerado e utilizado no monorepo atual |
+| Validação com `nx run @bhs-dev/typescript-common-errors:*`                                  | Validação com `nx run typescript-common-errors:*`            | O Nx resolve targets pelo nome do projeto, não pelo nome npm      |
+
+---
+
+## Prompt Original Utilizado
 
 ```
 **CONTEXTO**
@@ -125,11 +164,11 @@ Conforme MONOREPO_PROPOSE.md, `typescript-common-errors` contém:
 
 ## Critérios de Aceite
 
-- [ ] Pacote gera `dist/` com `.js` e `.d.ts` corretos
-- [ ] Testes passam com cobertura aderente aos thresholds
-- [ ] Lint sem erros
-- [ ] `nx graph` mostra dependência `typescript-common-types` → `typescript-common-errors`
-- [ ] Barrel export contém `CustomError` e todas as factories
-- [ ] `package.json` com dependency em `@bhs-dev/typescript-common-types`
-- [ ] Nenhum import de implementação externa (apenas types do pacote irmão)
-- [ ] `CustomErrorOptions` é importado de `@bhs-dev/typescript-common-types`, não redefinido
+- [x] Pacote gera `dist/` com `.js` e `.d.ts` corretos
+- [x] Testes passam com cobertura aderente aos thresholds
+- [x] Lint sem erros
+- [x] `nx graph` mostra dependência `typescript-common-types` → `typescript-common-errors`
+- [x] Barrel export contém `CustomError` e todas as factories
+- [x] `package.json` com dependency em `@bhs-dev/typescript-common-types`
+- [x] Nenhum import de implementação externa (apenas types do pacote irmão)
+- [x] `CustomErrorOptions` é importado de `@bhs-dev/typescript-common-types`, não redefinido
