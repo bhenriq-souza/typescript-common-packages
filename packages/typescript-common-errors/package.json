@@ -1,0 +1,22 @@
+{
+  "name": "@bhs-dev/typescript-common-errors",
+  "version": "0.0.1",
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "peerDependencies": {},
+  "dependencies": {
+    "@bhs-dev/typescript-common-types": "^0.0.1",
+    "tslib": "^2.3.0"
+  }
+}
