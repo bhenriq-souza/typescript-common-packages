@@ -16,7 +16,7 @@
   },
   "peerDependencies": {},
   "dependencies": {
-    "@bhs-dev/typescript-common-types": "^0.0.1",
+    "@bhs-dev/typescript-common-types": "^1.0.0",
     "tslib": "^2.3.0"
   }
 }
