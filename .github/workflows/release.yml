@@ -10,6 +10,10 @@ name: Release
 #
 # Cada branch publica EXATAMENTE UM pacote. Cascatas inter-pacote exigem
 # branches sequenciais, conforme documentado no ADR.
+#
+# IDEMPOTÊNCIA: cada step "destrutivo" é guardado por uma checagem de estado
+# (tag git, versão no npm, GitHub Release, back-merge PR). Re-rodar o workflow
+# na mesma release branch é seguro — steps já cumpridos viram no-op silencioso.
 
 on:
   push:
@@ -77,6 +81,55 @@ jobs:
       - name: Build package
         run: npx nx run ${{ steps.parse.outputs.package }}:build
 
+      - name: Check release state (idempotency)
+        id: state
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PKG="${{ steps.parse.outputs.package }}"
+          VER="${{ steps.parse.outputs.version }}"
+          NPM_PKG="@bhs-dev/$PKG"
+          TAG="$PKG@$VER"
+          BRANCH="${{ steps.parse.outputs.branch }}"
+
+          # Tag git (remoto) — fonte de verdade pra "release commit já existe"
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
+            TAG_EXISTS=true
+          else
+            TAG_EXISTS=false
+          fi
+
+          # Publicação no npm
+          if npm view "$NPM_PKG@$VER" version > /dev/null 2>&1; then
+            NPM_PUBLISHED=true
+          else
+            NPM_PUBLISHED=false
+          fi
+
+          # GitHub Release
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            GH_RELEASE_EXISTS=true
+          else
+            GH_RELEASE_EXISTS=false
+          fi
+
+          # Back-merge PR (qualquer estado: open OR merged)
+          PR_STATE=$(gh pr list --head "$BRANCH" --base develop --state all --limit 1 --json state -q '.[0].state' 2>/dev/null || echo "")
+          if [ -n "$PR_STATE" ]; then
+            BACK_MERGE_PR_EXISTS=true
+          else
+            BACK_MERGE_PR_EXISTS=false
+          fi
+
+          {
+            echo "tag_exists=$TAG_EXISTS"
+            echo "npm_published=$NPM_PUBLISHED"
+            echo "gh_release_exists=$GH_RELEASE_EXISTS"
+            echo "back_merge_pr_exists=$BACK_MERGE_PR_EXISTS"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "::notice::Estado de ${PKG}@${VER} → tag=${TAG_EXISTS}, npm=${NPM_PUBLISHED}, gh_release=${GH_RELEASE_EXISTS}, back_merge_pr=${BACK_MERGE_PR_EXISTS}"
+
       - name: Determine dist-tag
         id: tag
         run: |
@@ -90,11 +143,13 @@ jobs:
           fi
 
       - name: Configure git
+        if: steps.state.outputs.tag_exists == 'false'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Version, changelog, commit & tag
+        if: steps.state.outputs.tag_exists == 'false'
         run: |
           npx nx release version ${{ steps.parse.outputs.version }} \
             --projects=${{ steps.parse.outputs.package }} \
@@ -104,14 +159,17 @@ jobs:
             --first-release
 
       - name: Push commits and tags
+        if: steps.state.outputs.tag_exists == 'false'
         run: git push --follow-tags
 
       - name: Configure npm authentication
+        if: steps.state.outputs.npm_published == 'false'
         run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to npm
+        if: steps.state.outputs.npm_published == 'false'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
@@ -121,20 +179,8 @@ jobs:
             --registry=https://registry.npmjs.org \
             --first-release
 
-      - name: Update lockfile
-        run: npm install --package-lock-only --ignore-scripts
-
-      - name: Commit and push lockfile (if changed)
-        run: |
-          if ! git diff --quiet package-lock.json; then
-            git add package-lock.json
-            git commit -m "chore(release): atualiza package-lock.json para ${{ steps.parse.outputs.package }}@${{ steps.parse.outputs.version }}"
-            git push
-          else
-            echo "::notice::package-lock.json sem alterações — nada a commitar"
-          fi
-
       - name: Create GitHub Release
+        if: steps.state.outputs.gh_release_exists == 'false'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -145,6 +191,7 @@ jobs:
             --verify-tag
 
       - name: Open back-merge PR to develop
+        if: steps.state.outputs.back_merge_pr_exists == 'false'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -155,9 +202,8 @@ jobs:
 
           ## Conteúdo
 
-          - Bump de versão no \`package.json\` do pacote
+          - Bump de versão no manifest (\`dist/\`)
           - Consumo do version-plan correspondente
-          - Atualização do \`package-lock.json\`
           - Changelog gerado pelo Nx Release
 
           ## Por que este PR existe
@@ -165,7 +211,6 @@ jobs:
           O modelo de release por branch dedicada (ADR-0001 Addendum 2026-04-22) gera os artefatos de versão na branch \`releases/...\`. Este back-merge propaga esses artefatos de volta para \`develop\`, garantindo que:
 
           - O version-plan consumido não seja recriado por engano em PRs futuras
-          - O \`package-lock.json\` em \`develop\` reflita a versão publicada
           - As próximas releases partam do estado atualizado
 
           ## Pós-merge
@@ -182,3 +227,11 @@ jobs:
             --head "$BRANCH" \
             --title "$TITLE" \
             --body "$BODY"
+
+      - name: Resumo final
+        run: |
+          echo "::notice::Release de ${{ steps.parse.outputs.package }}@${{ steps.parse.outputs.version }} concluída."
+          echo "  - Tag git:        ${{ steps.state.outputs.tag_exists == 'true' && 'já existia' || 'criada agora' }}"
+          echo "  - npm publish:    ${{ steps.state.outputs.npm_published == 'true' && 'já existia' || 'feito agora' }}"
+          echo "  - GitHub Release: ${{ steps.state.outputs.gh_release_exists == 'true' && 'já existia' || 'criado agora' }}"
+          echo "  - Back-merge PR:  ${{ steps.state.outputs.back_merge_pr_exists == 'true' && 'já existia' || 'aberto agora' }}"
