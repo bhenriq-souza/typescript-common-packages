@@ -1,0 +1,382 @@
+{
+  "graph": {
+    "nodes": {
+      "typescript-common-errors": {
+        "name": "typescript-common-errors",
+        "type": "lib",
+        "data": {
+          "root": "packages/typescript-common-errors",
+          "targets": {
+            "lint": {
+              "cache": true,
+              "options": {
+                "cwd": "packages/typescript-common-errors",
+                "command": "eslint ."
+              },
+              "inputs": ["default"],
+              "outputs": ["{options.outputFile}"],
+              "metadata": {
+                "technologies": ["eslint"],
+                "description": "Runs ESLint on project",
+                "help": {
+                  "command": "npx eslint --help",
+                  "example": {
+                    "options": {
+                      "max-warnings": 0
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "test": {
+              "options": {
+                "cwd": "packages/typescript-common-errors",
+                "env": {
+                  "TS_NODE_COMPILER_OPTIONS": "{\"moduleResolution\":\"node10\",\"module\":\"commonjs\",\"customConditions\":null}"
+                },
+                "command": "jest"
+              },
+              "metadata": {
+                "technologies": ["jest"],
+                "description": "Run Jest Tests",
+                "help": {
+                  "command": "npx jest --help",
+                  "example": {
+                    "options": {
+                      "coverage": true
+                    }
+                  }
+                }
+              },
+              "cache": true,
+              "inputs": ["default", "^production"],
+              "outputs": [
+                "{workspaceRoot}/coverage/packages/typescript-common-errors"
+              ],
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "nx-release-publish": {
+              "executor": "@nx/js:release-publish",
+              "dependsOn": ["^nx-release-publish"],
+              "options": {
+                "packageRoot": "dist/packages/typescript-common-errors"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "@nx/js:tsc",
+              "outputs": ["{options.outputPath}"],
+              "options": {
+                "outputPath": "dist/packages/typescript-common-errors",
+                "main": "packages/typescript-common-errors/src/index.ts",
+                "tsConfig": "packages/typescript-common-errors/tsconfig.lib.json",
+                "assets": ["packages/typescript-common-errors/*.md"]
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true,
+              "dependsOn": ["^build"],
+              "inputs": ["production", "^production"]
+            }
+          },
+          "name": "typescript-common-errors",
+          "tags": ["npm:public"],
+          "metadata": {
+            "targetGroups": {},
+            "js": {
+              "packageName": "@bhs-dev/typescript-common-errors",
+              "packageVersion": "0.0.1",
+              "packageMain": "./src/index.js",
+              "isInPackageManagerWorkspaces": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "packages/typescript-common-errors/src",
+          "projectType": "library",
+          "release": {
+            "version": {
+              "manifestRootsToUpdate": ["dist/{projectRoot}"],
+              "currentVersionResolver": "git-tag",
+              "fallbackCurrentVersionResolver": "disk"
+            }
+          },
+          "implicitDependencies": []
+        }
+      },
+      "typescript-common-types": {
+        "name": "typescript-common-types",
+        "type": "lib",
+        "data": {
+          "root": "packages/typescript-common-types",
+          "targets": {
+            "lint": {
+              "cache": true,
+              "options": {
+                "cwd": "packages/typescript-common-types",
+                "command": "eslint ."
+              },
+              "inputs": ["default"],
+              "outputs": ["{options.outputFile}"],
+              "metadata": {
+                "technologies": ["eslint"],
+                "description": "Runs ESLint on project",
+                "help": {
+                  "command": "npx eslint --help",
+                  "example": {
+                    "options": {
+                      "max-warnings": 0
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "test": {
+              "options": {
+                "cwd": "packages/typescript-common-types",
+                "env": {
+                  "TS_NODE_COMPILER_OPTIONS": "{\"moduleResolution\":\"node10\",\"module\":\"commonjs\",\"customConditions\":null}"
+                },
+                "command": "jest"
+              },
+              "metadata": {
+                "technologies": ["jest"],
+                "description": "Run Jest Tests",
+                "help": {
+                  "command": "npx jest --help",
+                  "example": {
+                    "options": {
+                      "coverage": true
+                    }
+                  }
+                }
+              },
+              "cache": true,
+              "inputs": ["default", "^production"],
+              "outputs": [
+                "{workspaceRoot}/coverage/packages/typescript-common-types"
+              ],
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "nx-release-publish": {
+              "executor": "@nx/js:release-publish",
+              "dependsOn": ["^nx-release-publish"],
+              "options": {
+                "packageRoot": "dist/packages/typescript-common-types"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "@nx/js:tsc",
+              "outputs": ["{options.outputPath}"],
+              "options": {
+                "outputPath": "dist/packages/typescript-common-types",
+                "main": "packages/typescript-common-types/src/index.ts",
+                "tsConfig": "packages/typescript-common-types/tsconfig.lib.json",
+                "assets": ["packages/typescript-common-types/*.md"]
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true,
+              "dependsOn": ["^build"],
+              "inputs": ["production", "^production"]
+            }
+          },
+          "name": "typescript-common-types",
+          "tags": ["npm:public"],
+          "metadata": {
+            "targetGroups": {},
+            "js": {
+              "packageName": "@bhs-dev/typescript-common-types",
+              "packageVersion": "1.0.0",
+              "packageMain": "./src/index.js",
+              "isInPackageManagerWorkspaces": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "packages/typescript-common-types/src",
+          "projectType": "library",
+          "release": {
+            "version": {
+              "manifestRootsToUpdate": ["dist/{projectRoot}"],
+              "currentVersionResolver": "git-tag",
+              "fallbackCurrentVersionResolver": "disk"
+            }
+          },
+          "implicitDependencies": []
+        }
+      },
+      "typescript-common-env": {
+        "name": "typescript-common-env",
+        "type": "lib",
+        "data": {
+          "root": "packages/typescript-common-env",
+          "targets": {
+            "lint": {
+              "cache": true,
+              "options": {
+                "cwd": "packages/typescript-common-env",
+                "command": "eslint ."
+              },
+              "inputs": ["default"],
+              "outputs": ["{options.outputFile}"],
+              "metadata": {
+                "technologies": ["eslint"],
+                "description": "Runs ESLint on project",
+                "help": {
+                  "command": "npx eslint --help",
+                  "example": {
+                    "options": {
+                      "max-warnings": 0
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "test": {
+              "options": {
+                "cwd": "packages/typescript-common-env",
+                "env": {
+                  "TS_NODE_COMPILER_OPTIONS": "{\"moduleResolution\":\"node10\",\"module\":\"commonjs\",\"customConditions\":null}"
+                },
+                "command": "jest"
+              },
+              "metadata": {
+                "technologies": ["jest"],
+                "description": "Run Jest Tests",
+                "help": {
+                  "command": "npx jest --help",
+                  "example": {
+                    "options": {
+                      "coverage": true
+                    }
+                  }
+                }
+              },
+              "cache": true,
+              "inputs": ["default", "^production"],
+              "outputs": [
+                "{workspaceRoot}/coverage/packages/typescript-common-env"
+              ],
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "nx-release-publish": {
+              "executor": "@nx/js:release-publish",
+              "dependsOn": ["^nx-release-publish"],
+              "options": {
+                "packageRoot": "dist/packages/typescript-common-env"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "@nx/js:tsc",
+              "outputs": ["{options.outputPath}"],
+              "options": {
+                "outputPath": "dist/packages/typescript-common-env",
+                "main": "packages/typescript-common-env/src/index.ts",
+                "tsConfig": "packages/typescript-common-env/tsconfig.lib.json",
+                "assets": ["packages/typescript-common-env/*.md"]
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true,
+              "dependsOn": ["^build"],
+              "inputs": ["production", "^production"]
+            }
+          },
+          "name": "typescript-common-env",
+          "tags": ["npm:public"],
+          "metadata": {
+            "targetGroups": {},
+            "js": {
+              "packageName": "@bhs-dev/typescript-common-env",
+              "packageVersion": "0.0.1",
+              "packageMain": "./src/index.js",
+              "isInPackageManagerWorkspaces": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "packages/typescript-common-env/src",
+          "projectType": "library",
+          "release": {
+            "version": {
+              "manifestRootsToUpdate": ["dist/{projectRoot}"],
+              "currentVersionResolver": "git-tag",
+              "fallbackCurrentVersionResolver": "disk"
+            }
+          },
+          "implicitDependencies": []
+        }
+      },
+      "@bhs-dev/typescript-common-packages": {
+        "name": "@bhs-dev/typescript-common-packages",
+        "type": "app",
+        "data": {
+          "root": ".",
+          "name": "@bhs-dev/typescript-common-packages",
+          "includedScripts": [],
+          "tags": ["npm:private"],
+          "metadata": {
+            "targetGroups": {},
+            "description": "Monorepo Nx com pacotes TypeScript reutilizaveis extraidos do ts-express-app.",
+            "js": {
+              "packageName": "@bhs-dev/typescript-common-packages",
+              "packageVersion": "0.0.0",
+              "isInPackageManagerWorkspaces": true
+            }
+          },
+          "targets": {
+            "local-registry": {
+              "executor": "@nx/js:verdaccio",
+              "options": {
+                "port": 4873,
+                "config": ".verdaccio/config.yml",
+                "storage": "tmp/local-registry/storage"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "continuous": true
+            }
+          },
+          "$schema": "node_modules/nx/schemas/project-schema.json",
+          "implicitDependencies": []
+        }
+      }
+    },
+    "dependencies": {
+      "typescript-common-errors": [
+        {
+          "source": "typescript-common-errors",
+          "target": "typescript-common-types",
+          "type": "static"
+        }
+      ],
+      "typescript-common-types": [],
+      "typescript-common-env": [
+        {
+          "source": "typescript-common-env",
+          "target": "typescript-common-types",
+          "type": "static"
+        }
+      ],
+      "@bhs-dev/typescript-common-packages": []
+    }
+  }
+}
