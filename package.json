@@ -64,5 +64,8 @@
   ],
   "nx": {
     "includedScripts": []
+  },
+  "dependencies": {
+    "@bhs-dev/typescript-common-types": "^1.0.0"
   }
 }
