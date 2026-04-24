@@ -58,7 +58,9 @@
       "projectChangelogs": true,
       "workspaceChangelog": false
     },
-    "versionPlans": true
+    "versionPlans": {
+      "ignorePatternsForPlanCheck": ["**/CHANGELOG.md"]
+    }
   },
   "defaultBase": "develop",
   "plugins": [
