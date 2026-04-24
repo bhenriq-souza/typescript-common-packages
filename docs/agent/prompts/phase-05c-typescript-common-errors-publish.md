@@ -1,7 +1,7 @@
 # Phase 05c: Publicação efetiva de `typescript-common-errors@0.1.0`
 
 > **Objetivo:** fechar a cascata inter-pacote iniciada em 05b — atualizar `typescript-common-errors` para depender de `@bhs-dev/typescript-common-types@^1.0.0` e publicar `errors@0.1.0` via o modelo de release branch dedicada (ADR-0001 Addendum 2026-04-22).
-> **Status:** 🟡 Aberta em 2026-04-22
+> **Status:** ✅ Concluída em 2026-04-24
 > **Pré-requisitos (leitura obrigatória):**
 >
 > 1. [phase-05b-release-reconciliation.md](phase-05b-release-reconciliation.md) — seções _Resultado da Investigação_ e _Sequência operacional para publish efetivo_
@@ -107,13 +107,13 @@ Executar a segunda etapa da cascata inter-pacote: publicar `@bhs-dev/typescript-
 
 ### Critério de pronto (phase 05c concluída)
 
-- [ ] Prep PR aberto, CI verde, mergeado em `develop`
-- [ ] `releases/typescript-common-errors/v0.1.0` criada, pushada, workflow ✅
-- [ ] `@bhs-dev/typescript-common-errors@0.1.0` visível em `npm view @bhs-dev/typescript-common-errors version` com dist-tag `latest`
-- [ ] Tag git `typescript-common-errors@0.1.0` em `origin`
-- [ ] GitHub Release criada
-- [ ] Back-merge PR aberto, mergeado em `develop`
-- [ ] Docs de phase-05 e phase-05b atualizadas refletindo o fechamento
+- [x] Prep PR aberto, CI verde, mergeado em `develop`
+- [x] `releases/typescript-common-errors/v0.1.0` criada, pushada, workflow ✅
+- [x] `@bhs-dev/typescript-common-errors@0.1.0` visível em `npm view @bhs-dev/typescript-common-errors version` com dist-tag `latest`
+- [x] Tag git `typescript-common-errors@0.1.0` em `origin`
+- [x] GitHub Release criada
+- [x] Back-merge PR aberto, mergeado em `develop` (PR #8)
+- [x] Docs de phase-05 e phase-05b atualizadas refletindo o fechamento
 
 **PRINCÍPIOS DE TRABALHO**
 
@@ -141,9 +141,9 @@ Executar a segunda etapa da cascata inter-pacote: publicar `@bhs-dev/typescript-
 
 ## Resultado Esperado
 
-- [ ] Prep PR aberto e mergeado em `develop` (atualiza dep para `^1.0.0` + lockfile)
-- [ ] Release branch `releases/typescript-common-errors/v0.1.0` criada e pushada
-- [ ] `@bhs-dev/typescript-common-errors@0.1.0` publicado no npm com dist-tag `latest`
-- [ ] Back-merge PR mergeado
-- [ ] Docs de phase-05 e phase-05b marcadas como concluídas
-- [ ] Modelo de cascata inter-pacote (ADR Addendum 2026-04-22) validado fim-a-fim
+- [x] Prep PR aberto e mergeado em `develop` (atualiza dep para `^1.0.0` + lockfile)
+- [x] Release branch `releases/typescript-common-errors/v0.1.0` criada e pushada
+- [x] `@bhs-dev/typescript-common-errors@0.1.0` publicado no npm com dist-tag `latest`
+- [x] Back-merge PR mergeado (PR #8)
+- [x] Docs de phase-05 e phase-05b marcadas como concluídas
+- [x] Modelo de cascata inter-pacote (ADR Addendum 2026-04-22) validado fim-a-fim

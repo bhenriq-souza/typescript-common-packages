@@ -1,7 +1,7 @@
 # Phase 05: Segundo Pacote — `typescript-common-errors` — IMPLEMENTAÇÃO CONCLUÍDA
 
 > **Status:** ✅ Implementação concluída em 2026-04-22
-> **Publicação:** 🟡 Pendente — bloqueada por divergência entre git tag, manifests locais e versão publicada de `typescript-common-types`
+> **Publicação:** ✅ Concluída em 2026-04-24 — `@bhs-dev/typescript-common-errors@0.1.0` publicado no npm via `releases/typescript-common-errors/v0.1.0` (back-merge PR #8 mergeado)
 > **Branch original de implementação:** `feat/initial-configs`
 
 ---

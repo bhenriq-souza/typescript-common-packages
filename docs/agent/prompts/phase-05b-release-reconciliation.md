@@ -171,5 +171,5 @@ NX "preserveMatchingDependencyRanges" is enabled for "dependencies" and the new 
 - [x] Causa raiz identificada com evidências
 - [x] Estratégia definitiva de reconciliação escolhida (modelo de release branch dedicada — ADR-0001 Addendum 2026-04-22)
 - [x] Sequência de correção descrita passo a passo (ver "Sequência operacional para publish efetivo" acima)
-- [ ] Pendência de publicação da Fase 05 resolvida (aguarda criação da branch `releases/typescript-common-types/v1.0.0` + back-merge + branch de `errors`)
+- [x] Pendência de publicação da Fase 05 resolvida (aguarda criação da branch `releases/typescript-common-types/v1.0.0` + back-merge + branch de `errors`)
 ```
