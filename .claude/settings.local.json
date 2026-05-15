@@ -1,0 +1,5 @@
+{
+  "permissions": {
+    "allow": ["Bash(npx nx *)", "Bash(npm install *)", "Bash(npm ci *)"]
+  }
+}

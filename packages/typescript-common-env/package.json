@@ -1,0 +1,25 @@
+{
+  "name": "@bhs-dev/typescript-common-env",
+  "version": "0.0.1",
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "peerDependencies": {
+    "reflect-metadata": ">=0.2.0",
+    "tsyringe": ">=4.10.0"
+  },
+  "dependencies": {
+    "@bhs-dev/typescript-common-types": "^1.0.0",
+    "tslib": "^2.3.0"
+  }
+}

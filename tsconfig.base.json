@@ -25,6 +25,9 @@
       ],
       "@bhs-dev/typescript-common-errors": [
         "packages/typescript-common-errors/src/index.ts"
+      ],
+      "@bhs-dev/typescript-common-env": [
+        "packages/typescript-common-env/src/index.ts"
       ]
     }
   },
