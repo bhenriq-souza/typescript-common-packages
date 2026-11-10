@@ -4,3 +4,4 @@ dist/
 .nx/workspace-data/
 *.tsbuildinfo
 coverage/
+.claude/settings.local.json
